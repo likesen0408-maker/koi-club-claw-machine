@@ -1,4 +1,4 @@
-const { getStore } = require("@netlify/blobs");
+const { getStore, connectLambda } = require("@netlify/blobs");
 const crypto = require("crypto");
 const DEFAULT_DB = require("./default-db.json");
 
@@ -83,6 +83,7 @@ function getRoute(event) {
 
 exports.handler = async (event) => {
   try {
+    connectLambda(event);
     const method = event.httpMethod || "GET";
     const route = getRoute(event);
     const { store, db } = await getDb();
