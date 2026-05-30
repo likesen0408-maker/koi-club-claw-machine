@@ -14,12 +14,14 @@
     <h1>活动后台</h1>
     <div class="subtitle">兑换码 · 抓取记录</div>
   </header>
-  <section class="admin-card">
-    <h3 class="section-title">✅ 后台已开启</h3>
-    <div class="rec">当前后台无需密码，可直接生成兑换码、查看记录和管理库存。</div>
+
+  <section class="admin-card" id="loginAdmin">
+    <h3 class="section-title">🔐 后台登录</h3>
+    <input class="input" id="adminKey" placeholder="输入后台密码，默认 koi061" type="password" />
+    <button class="btn btn-main" id="saveKeyBtn" style="width:100%;margin-top:8px">进入后台</button>
   </section>
 
-  <section id="adminContent">
+  <section id="adminContent" class="hidden">
     <section class="admin-card">
       <h3 class="section-title">🎫 创建抓娃娃资格</h3>
       <div class="admin-grid">
