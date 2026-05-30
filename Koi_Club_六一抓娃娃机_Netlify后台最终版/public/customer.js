@@ -15,7 +15,7 @@ const modal=$("modal"), modalIcon=$("modalIcon"), modalTitle=$("modalTitle"), mo
 function setStatus(text){statusEl.textContent=text; miniState.textContent=text;}
 function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
 function wait(ms){return new Promise(r=>setTimeout(r,ms))}
-function canCatch(){return activeCode && remainingTimes > 0 && !busy && dolls.some(d => d.stock > 0)}
+function canCatch(){return activeCode && remainingTimes > 0 && !busy && dolls.some(d => d.unlimited || d.stock > 0)}
 function updateButtons(){catchBtn.disabled = !canCatch();}
 function updateUser(){
   if(activeCode){
@@ -35,12 +35,12 @@ function renderDolls(){
     const el=document.createElement("div");
     el.className="doll"+(d.stock<=0?" empty":"");
     el.style.left=d.x+"%"; el.style.top=d.y+"%"; el.style.width=d.size+"px"; el.style.height=d.size+"px"; el.style.animationDelay=(i*.14)+"s";
-    el.innerHTML=`<img src="${d.image}" alt="${d.name}"><div class="stock">${d.stock>0?"库存"+d.stock:"已抓完"}</div>`;
+    el.innerHTML=`<img src="${d.image}" alt="${d.name}"><div class="stock">${d.unlimited ? "库存∞" : (d.stock>0?"库存"+d.stock:"已抓完")}</div>`;
     dollLayer.appendChild(el);
   });
 }
 function renderRewards(){
-  rewardList.innerHTML=dolls.map(d=>`<div class="reward${d.stock<=0?" empty":""}"><div class="ri">${d.icon}</div><div class="rt">${d.reward}</div><div class="rs">${d.stock}</div></div>`).join("");
+  rewardList.innerHTML=dolls.map(d=>`<div class="reward${(!d.unlimited && d.stock<=0)?" empty":""}"><div class="ri">${d.icon}</div><div class="rt">${d.reward}</div><div class="rs">${d.unlimited ? "∞" : d.stock}</div></div>`).join("");
 }
 async function loadConfig(){
   const res = await fetch("/api/config");
@@ -79,7 +79,7 @@ joy.addEventListener("pointerup",()=>{joyActive=false;knob.style.left="50%"});
 joy.addEventListener("pointercancel",()=>{joyActive=false;knob.style.left="50%"});
 
 function getCandidateLocal(){
-  const available=dolls.filter(d=>d.stock>0);
+  const available=dolls.filter(d=>d.unlimited || d.stock>0);
   if(!available.length) return null;
   return available.map(d=>({...d,gap:Math.abs(clawX-d.x)})).sort((a,b)=>a.gap-b.gap)[0];
 }
