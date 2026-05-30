@@ -1,0 +1,62 @@
+
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Koi Club 六一抓娃娃机｜顾客端</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="badge">6.1 MOBILE CLAW MACHINE</div>
+    <h1>Koi Club 六一活动</h1>
+    <div class="subtitle">抓娃娃机 赢豪礼</div>
+  </header>
+
+  <section class="card login" id="loginBox">
+    <input class="input" id="redeemCode" placeholder="输入兑换码，例如 KOI-XXXX" />
+    <button class="btn btn-main" id="verifyBtn">验证兑换码，开始抓娃娃</button>
+  </section>
+
+  <div class="userbar" id="userbar">
+    <div><span id="userInfo">未验证</span><small id="chanceInfo">剩余次数：0</small></div>
+    <button class="btn btn-soft" id="logoutBtn">换码</button>
+  </div>
+
+  <section class="card">
+    <div class="machine">
+      <div class="strip"><span class="dot d1"></span><span class="dot d2"></span> 六一快乐 抓中惊喜 <span class="dot d2"></span><span class="dot d3"></span></div>
+      <div class="glass" id="glass">
+        <div class="track"></div><div class="status" id="status">验证兑换码后开始抓娃娃</div><div class="note">每次抓取<br>必中娃娃</div><div class="chute"></div>
+        <div class="claw" id="claw"><div class="wire" id="wire"></div><div class="head"></div><div class="arms"><div class="arm left"></div><div class="arm mid"></div><div class="arm right"></div></div><div class="held" id="held"></div></div>
+        <div class="doll-layer" id="dollLayer"></div>
+      </div>
+      <div class="controls">
+        <div class="joy-wrap"><div class="joy" id="joy"><div class="knob" id="knob"></div></div></div>
+        <div class="action-box">
+          <button class="catch-btn" id="catchBtn">抓取</button>
+          <div class="mini-state" id="miniState">请先验证兑换码</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3 class="section-title">⭐ 奖励列表</h3>
+    <div class="rewards" id="rewardList"></div>
+  </section>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <div class="modal-icon" id="modalIcon">🎁</div>
+    <h2 id="modalTitle">恭喜抓中！</h2>
+    <div class="modal-result"><div class="modal-sub" id="modalSub">你抓到了</div><div class="modal-reward" id="modalReward">奖励</div></div>
+    <div class="modal-actions"><button class="btn btn-soft" id="closeModal">返回</button><button class="btn btn-main" id="againBtn">再抓一次</button></div>
+  </div>
+</div>
+<script src="/customer.js"></script>
+</body>
+</html>

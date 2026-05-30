@@ -1,0 +1,11 @@
+{
+  "name": "koi-club-claw-machine-netlify",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "echo build complete"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^9.1.2"
+  }
+}

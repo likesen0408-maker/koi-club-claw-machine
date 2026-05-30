@@ -1,0 +1,134 @@
+{
+  "dolls": [
+    {
+      "id": 1,
+      "name": "爱心包包羊",
+      "reward": "自选摸金图1局",
+      "icon": "📖",
+      "image": "/assets/doll1.png",
+      "x": 18,
+      "y": 56,
+      "size": 92,
+      "stock": 5,
+      "initialStock": 5
+    },
+    {
+      "id": 2,
+      "name": "奶茶杯羊",
+      "reward": "单局带出60w",
+      "icon": "61",
+      "image": "/assets/doll2.png",
+      "x": 39,
+      "y": 50,
+      "size": 88,
+      "stock": 10,
+      "initialStock": 10
+    },
+    {
+      "id": 3,
+      "name": "大蝴蝶结羊",
+      "reward": "单局带出2大金",
+      "icon": "✨",
+      "image": "/assets/doll3.png",
+      "x": 61,
+      "y": 56,
+      "size": 92,
+      "stock": 3,
+      "initialStock": 3
+    },
+    {
+      "id": 4,
+      "name": "蓝帽兔兔羊",
+      "reward": "古城3局",
+      "icon": "🏰",
+      "image": "/assets/doll4.png",
+      "x": 81,
+      "y": 51,
+      "size": 88,
+      "stock": 8,
+      "initialStock": 8
+    },
+    {
+      "id": 5,
+      "name": "星星奶昔羊",
+      "reward": "本单累计带出100w",
+      "icon": "🎁",
+      "image": "/assets/doll5.png",
+      "x": 22,
+      "y": 75,
+      "size": 94,
+      "stock": 8,
+      "initialStock": 8
+    },
+    {
+      "id": 6,
+      "name": "勋章羊",
+      "reward": "大剑（100w）",
+      "icon": "⚔️",
+      "image": "/assets/doll6.png",
+      "x": 43,
+      "y": 72,
+      "size": 86,
+      "stock": 5,
+      "initialStock": 5
+    },
+    {
+      "id": 7,
+      "name": "牛奶盒羊",
+      "reward": "噩梦2局",
+      "icon": "👾",
+      "image": "/assets/doll7.png",
+      "x": 64,
+      "y": 76,
+      "size": 90,
+      "stock": 5,
+      "initialStock": 5
+    },
+    {
+      "id": 8,
+      "name": "公主底座羊",
+      "reward": "圣杯（150w）",
+      "icon": "🏆",
+      "image": "/assets/doll8.png",
+      "x": 82,
+      "y": 73,
+      "size": 94,
+      "stock": 3,
+      "initialStock": 3
+    },
+    {
+      "id": 9,
+      "name": "马克杯羊",
+      "reward": "吞金兽（100w）",
+      "icon": "🐲",
+      "image": "/assets/doll9.png",
+      "x": 34,
+      "y": 89,
+      "size": 84,
+      "stock": 5,
+      "initialStock": 5
+    },
+    {
+      "id": 10,
+      "name": "云朵公主羊",
+      "reward": "炼狱1局",
+      "icon": "🔥",
+      "image": "/assets/doll10.png",
+      "x": 70,
+      "y": 88,
+      "size": 84,
+      "stock": 3,
+      "initialStock": 3
+    }
+  ],
+  "codes": [
+    {
+      "code": "KOI-DEMO",
+      "total": 3,
+      "used": 0,
+      "pay": "6.1",
+      "createdAt": "demo"
+    }
+  ],
+  "records": []
+}
