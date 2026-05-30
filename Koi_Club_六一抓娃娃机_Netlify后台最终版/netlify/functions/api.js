@@ -27,6 +27,18 @@ function now() {
   return new Date().toLocaleString("zh-CN", { hour12: false });
 }
 
+
+function forceUnlimitedStock(db) {
+  if (!db || !Array.isArray(db.dolls)) return db;
+  db.dolls = db.dolls.map(d => ({
+    ...d,
+    unlimited: true,
+    stock: 999999,
+    initialStock: 999999
+  }));
+  return db;
+}
+
 function cloneDefaultDb() {
   return JSON.parse(JSON.stringify(DEFAULT_DB));
 }
@@ -38,6 +50,8 @@ async function getDb() {
     db = cloneDefaultDb();
     await store.setJSON("db", db);
   }
+  db = forceUnlimitedStock(db);
+  await store.setJSON("db", db);
   return { store, db };
 }
 
@@ -63,7 +77,8 @@ function publicDoll(d) {
     x: d.x,
     y: d.y,
     size: d.size,
-    stock: d.stock
+    stock: d.stock,
+    unlimited: !!d.unlimited
   };
 }
 
@@ -106,13 +121,13 @@ exports.handler = async (event) => {
       if (!code) return response(404, { ok: false, error: "兑换码不存在" });
       if (remaining(code) <= 0) return response(400, { ok: false, error: "兑换码次数已用完" });
 
-      const available = db.dolls.filter(d => Number(d.stock) > 0);
+      const available = db.dolls.filter(d => d.unlimited || Number(d.stock) > 0);
       if (!available.length) return response(400, { ok: false, error: "奖励库存已抓完" });
 
       available.sort((a, b) => Math.abs(Number(a.x) - clawX) - Math.abs(Number(b.x) - clawX));
       const doll = available[0];
       const original = db.dolls.find(d => d.id === doll.id);
-      original.stock = Math.max(0, Number(original.stock || 0) - 1);
+      if (!original.unlimited) original.stock = Math.max(0, Number(original.stock || 0) - 1);
       code.used = Number(code.used || 0) + 1;
 
       const record = {
@@ -193,7 +208,7 @@ exports.handler = async (event) => {
     }
 
     if (method === "POST" && route === "admin/reset-stock") {
-      db.dolls = db.dolls.map(d => ({ ...d, stock: Number(d.initialStock || d.stock || 0) }));
+      db.dolls = db.dolls.map(d => ({ ...d, unlimited: true, stock: 999999, initialStock: 999999 }));
       await saveDb(store, db);
       return response(200, { ok: true, dolls: db.dolls });
     }
