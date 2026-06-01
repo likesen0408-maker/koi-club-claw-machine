@@ -49,17 +49,15 @@ function wait(ms) {
 }
 
 function normalizeInputCode(input) {
-  const raw = String(input || "")
-    .trim()
+  const clean = String(input || "")
     .toUpperCase()
-    .replace(/\s+/g, "");
+    .replace(/[^A-Z0-9]/g, "");
 
-  const match = raw.match(/KOI-[0-9A-F]{6}/) || raw.match(/KOI[0-9A-F]{6}/);
+  const match = clean.match(/KOI([0-9A-F]{6})/);
 
-  if (!match) return raw;
+  if (!match) return clean;
 
-  const code = match[0];
-  return code.startsWith("KOI-") ? code : "KOI-" + code.slice(3);
+  return "KOI-" + match[1];
 }
 
 function hasAvailableDoll() {
@@ -67,7 +65,7 @@ function hasAvailableDoll() {
 }
 
 function canCatch() {
-  return Boolean(activeCode) && remainingTimes > 0 && !busy && hasAvailableDoll();
+  return Boolean(activeCode) && Number(remainingTimes) > 0 && !busy && hasAvailableDoll();
 }
 
 function updateButtons() {
@@ -77,7 +75,7 @@ function updateButtons() {
     catchBtn.textContent = "请先验证兑换码";
   } else if (busy) {
     catchBtn.textContent = "抓取中...";
-  } else if (remainingTimes <= 0) {
+  } else if (Number(remainingTimes) <= 0) {
     catchBtn.textContent = "次数已用完";
   } else {
     catchBtn.textContent = "开始抓取";
@@ -139,15 +137,19 @@ function renderRewards() {
 }
 
 async function loadConfig() {
-  const res = await fetch("/api/config");
-  const data = await res.json();
+  try {
+    const res = await fetch("/api/config");
+    const data = await res.json();
 
-  dolls = data.dolls || [];
+    dolls = data.dolls || [];
 
-  renderDolls();
-  renderRewards();
-  updateClaw();
-  updateButtons();
+    renderDolls();
+    renderRewards();
+    updateClaw();
+    updateButtons();
+  } catch (e) {
+    setStatus("加载失败，请刷新页面");
+  }
 }
 
 verifyBtn.onclick = async () => {
@@ -177,8 +179,17 @@ verifyBtn.onclick = async () => {
       return alert(data.error || "验证失败");
     }
 
+    const left = Number(data.remaining || 0);
+
+    if (left <= 0) {
+      activeCode = "";
+      remainingTimes = 0;
+      updateUser();
+      return alert("兑换码次数已用完");
+    }
+
     activeCode = data.code;
-    remainingTimes = Number(data.remaining || 0);
+    remainingTimes = left;
 
     setStatus("兑换成功，拖动摇杆选择娃娃");
     updateUser();
@@ -253,10 +264,8 @@ async function startCatch() {
     return alert("请先输入兑换码");
   }
 
-  if (remainingTimes <= 0) {
-    activeCode = "";
-    remainingTimes = 0;
-    updateUser();
+  if (Number(remainingTimes) <= 0) {
+    updateButtons();
 
     return showModal({
       type: "empty",
@@ -274,6 +283,9 @@ async function startCatch() {
       reward: "奖励库存已抓完，请联系 Koi Club"
     });
   }
+
+  // 关键：抓取一开始就锁定当前兑换码，防止动画过程中状态被清空
+  const catchCode = activeCode;
 
   busy = true;
   updateButtons();
@@ -322,7 +334,7 @@ async function startCatch() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        code: activeCode,
+        code: catchCode,
         clawX: candidate.x
       })
     });
@@ -330,8 +342,10 @@ async function startCatch() {
     const data = await res.json();
 
     if (!data.ok) {
-      activeCode = "";
-      remainingTimes = 0;
+      if (data.error && data.error.includes("次数已用完")) {
+        remainingTimes = 0;
+      }
+
       updateUser();
 
       return showModal({
@@ -347,20 +361,19 @@ async function startCatch() {
     renderDolls();
     renderRewards();
 
+    // 关键：先弹中奖结果，不要先弹无效/用完
+    showModal({
+      type: "win",
+      ...data.result
+    });
+
     if (remainingTimes <= 0) {
-      activeCode = "";
-      remainingTimes = 0;
       setStatus("本次兑换码次数已用完");
     } else {
       setStatus("还有剩余次数，可继续抓取");
     }
 
     updateUser();
-
-    showModal({
-      type: "win",
-      ...data.result
-    });
   } finally {
     busy = false;
     updateButtons();
@@ -375,9 +388,9 @@ function showModal(r) {
   modalIcon.textContent = r.icon || "";
   modalTitle.textContent = r.type === "win" ? "恭喜抓中！" : "提示";
   modalSub.textContent = r.type === "win" ? `你抓到了〖${r.doll}〗` : "当前不可继续抓取";
-  modalReward.textContent = r.reward;
+  modalReward.textContent = r.reward || "";
 
-  againBtn.disabled = !(remainingTimes > 0 && hasAvailableDoll());
+  againBtn.disabled = !(Number(remainingTimes) > 0 && hasAvailableDoll());
 }
 
 function hideModal() {
