@@ -1,211 +1,418 @@
+let dolls = [];
+let activeCode = "";
+let remainingTimes = 0;
+let busy = false;
+let clawX = 50;
+
 const $ = id => document.getElementById(id);
 
-const codesBox = $("codesBox");
-const recordsBox = $("recordsBox");
-const dollsBox = $("dollsBox");
+const loginBox = $("loginBox");
+const userbar = $("userbar");
+const userInfo = $("userInfo");
+const chanceInfo = $("chanceInfo");
 
-function headers() {
-  return {
-    "Content-Type": "application/json"
-  };
+const redeemCode = $("redeemCode");
+const verifyBtn = $("verifyBtn");
+const logoutBtn = $("logoutBtn");
+
+const claw = $("claw");
+const wire = $("wire");
+const held = $("held");
+const dollLayer = $("dollLayer");
+const statusEl = $("status");
+const miniState = $("miniState");
+
+const joy = $("joy");
+const knob = $("knob");
+const catchBtn = $("catchBtn");
+const rewardList = $("rewardList");
+
+const modal = $("modal");
+const modalIcon = $("modalIcon");
+const modalTitle = $("modalTitle");
+const modalSub = $("modalSub");
+const modalReward = $("modalReward");
+const closeModal = $("closeModal");
+const againBtn = $("againBtn");
+
+function setStatus(text) {
+  statusEl.textContent = text;
+  miniState.textContent = text;
 }
 
-async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    ...opts,
-    headers: {
-      ...headers(),
-      ...(opts.headers || {})
-    }
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function wait(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+function normalizeInputCode(input) {
+  const raw = String(input || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+
+  const match = raw.match(/KOI-[0-9A-F]{6}/) || raw.match(/KOI[0-9A-F]{6}/);
+
+  if (!match) return raw;
+
+  const code = match[0];
+  return code.startsWith("KOI-") ? code : "KOI-" + code.slice(3);
+}
+
+function hasAvailableDoll() {
+  return dolls.some(d => d.unlimited || Number(d.stock) > 0);
+}
+
+function canCatch() {
+  return Boolean(activeCode) && remainingTimes > 0 && !busy && hasAvailableDoll();
+}
+
+function updateButtons() {
+  catchBtn.disabled = !canCatch();
+
+  if (!activeCode) {
+    catchBtn.textContent = "请先验证兑换码";
+  } else if (busy) {
+    catchBtn.textContent = "抓取中...";
+  } else if (remainingTimes <= 0) {
+    catchBtn.textContent = "次数已用完";
+  } else {
+    catchBtn.textContent = "开始抓取";
+  }
+}
+
+function updateUser() {
+  if (activeCode) {
+    loginBox.classList.add("hidden");
+    userbar.classList.add("show");
+    userInfo.textContent = `兑换码：${activeCode}`;
+    chanceInfo.textContent = `剩余次数：${remainingTimes}`;
+  } else {
+    loginBox.classList.remove("hidden");
+    userbar.classList.remove("show");
+    userInfo.textContent = "";
+    chanceInfo.textContent = "";
+  }
+
+  updateButtons();
+}
+
+function updateClaw(top = 64, wireH = 64, closed = false) {
+  claw.style.left = clawX + "%";
+  claw.style.top = top + "px";
+  wire.style.height = wireH + "px";
+  claw.classList.toggle("closed", closed);
+}
+
+function renderDolls() {
+  dollLayer.innerHTML = "";
+
+  dolls.forEach((d, i) => {
+    const isAvailable = d.unlimited || Number(d.stock) > 0;
+
+    const el = document.createElement("div");
+    el.className = "doll" + (!isAvailable ? " empty" : "");
+    el.style.left = d.x + "%";
+    el.style.top = d.y + "%";
+    el.style.width = d.size + "px";
+    el.style.height = d.size + "px";
+    el.style.animationDelay = (i * 0.14) + "s";
+
+    el.innerHTML = `
+      <img src="${d.image}" alt="${d.name}">
+    `;
+
+    dollLayer.appendChild(el);
   });
-
-  const data = await res.json().catch(() => ({
-    ok: false,
-    error: "请求失败"
-  }));
-
-  if (!res.ok || !data.ok) {
-    throw new Error(data.error || "请求失败");
-  }
-
-  return data;
 }
 
-async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    alert("已复制：" + text);
-  } catch (error) {
-    const input = document.createElement("textarea");
-    input.value = text;
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand("copy");
-    document.body.removeChild(input);
-    alert("已复制：" + text);
-  }
-}
-
-window.copyCode = async code => {
-  await copyText(code);
-};
-
-window.copyAllCodes = async text => {
-  await copyText(text);
-};
-
-async function loadCodes() {
-  const data = await api("/api/admin/codes");
-
-  codesBox.innerHTML = data.codes.length
-    ? data.codes.map(c => `
-      <div class="rec">
-        <div>
-          <strong style="font-size:18px;color:#e84f91;">${c.code}</strong>
-          <button class="btn btn-soft" onclick="copyCode('${c.code}')">复制</button>
-        </div>
-        <div style="margin-top:6px;">
-          ${c.used}/${c.total} 次｜剩余 ${c.remaining}｜${c.pay || "6.1"}r
-        </div>
-        <div style="margin-top:4px;color:${c.remaining > 0 ? "#38a169" : "#999"};">
-          ${c.remaining > 0 ? "可用" : "已用完"}
-        </div>
-      </div>
-    `).join("")
-    : `<div class="rec">暂无兑换码</div>`;
-}
-
-async function loadRecords() {
-  const data = await api("/api/admin/records");
-
-  recordsBox.innerHTML = data.records.length
-    ? data.records.map(r => `
-      <div class="rec">
-        <div><strong>${r.time}</strong></div>
-        <div style="margin-top:6px;">
-          兑换码：${r.code}
-          <button class="btn btn-soft" onclick="copyCode('${r.code}')">复制码</button>
-        </div>
-        <div style="margin-top:6px;">抓中：${r.doll}</div>
-        <div>奖励：${r.reward}</div>
-        <div style="margin-top:6px;">状态：${r.status}</div>
-        <button class="btn btn-main" onclick="markSent('${r.id}')">标记已发放</button>
-      </div>
-    `).join("")
-    : `<div class="rec">暂无抓取记录</div>`;
-}
-
-async function loadDolls() {
-  const data = await api("/api/admin/dolls");
-
-  dollsBox.innerHTML = data.dolls.map(d => `
-    <div class="rec">
-      <div style="font-size:26px;">${d.icon}</div>
-      <div style="font-weight:900;margin-top:6px;">${d.reward}</div>
+function renderRewards() {
+  rewardList.innerHTML = dolls.map(d => `
+    <div class="reward">
+      <div class="ri">${d.icon}</div>
+      <div class="rt">${d.reward}</div>
     </div>
   `).join("");
 }
 
-async function loadAll() {
-  try {
-    await loadCodes();
-    await loadRecords();
-    await loadDolls();
-  } catch (e) {
-    alert(e.message);
-  }
+async function loadConfig() {
+  const res = await fetch("/api/config");
+  const data = await res.json();
+
+  dolls = data.dolls || [];
+
+  renderDolls();
+  renderRewards();
+  updateClaw();
+  updateButtons();
 }
 
-$("createBtn").onclick = async () => {
-  try {
-    const body = {
-      pay: $("pay").value.trim() || "6.1",
-      total: Number($("times").value || 1),
-      count: Number($("count").value || 1)
-    };
+verifyBtn.onclick = async () => {
+  const code = normalizeInputCode(redeemCode.value);
 
-    const data = await api("/api/admin/codes", {
+  if (!code) {
+    return alert("请输入兑换码");
+  }
+
+  verifyBtn.disabled = true;
+
+  try {
+    const res = await fetch("/api/verify", {
       method: "POST",
-      body: JSON.stringify(body)
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ code })
     });
 
-    const codesText = data.codes.map(c => c.code).join("\n");
+    const data = await res.json();
 
-    const newCodesHtml = `
-      <div class="rec" style="border:2px solid #ff9dcc;background:#fff7fb;">
-        <div style="font-size:18px;font-weight:900;color:#e84f91;">新生成兑换码</div>
-
-        ${data.codes.map(c => `
-          <div style="margin-top:10px;padding:10px;border-radius:14px;background:#fff;border:1px solid #ffd0e5;">
-            <strong style="font-size:18px;color:#e84f91;">${c.code}</strong>
-            <button class="btn btn-soft" onclick="copyCode('${c.code}')">复制</button>
-            <div style="font-size:13px;margin-top:5px;">
-              可抓 ${c.total} 次｜${c.pay || "6.1"}r
-            </div>
-          </div>
-        `).join("")}
-
-        <button class="btn btn-main" style="width:100%;margin-top:12px;" onclick="copyAllCodes(\`${codesText}\`)">
-          一键复制全部
-        </button>
-      </div>
-    `;
-
-    codesBox.innerHTML = newCodesHtml + codesBox.innerHTML;
-
-    try {
-      await navigator.clipboard.writeText(codesText);
-      alert("已生成，并自动复制成功");
-    } catch (e) {
-      alert("已生成兑换码，请点复制按钮手动复制");
+    if (!data.ok) {
+      activeCode = "";
+      remainingTimes = 0;
+      updateUser();
+      return alert(data.error || "验证失败");
     }
 
-    await loadCodes();
-  } catch (e) {
-    alert(e.message);
+    activeCode = data.code;
+    remainingTimes = Number(data.remaining || 0);
+
+    setStatus("兑换成功，拖动摇杆选择娃娃");
+    updateUser();
+  } finally {
+    verifyBtn.disabled = false;
   }
 };
 
-window.markSent = async id => {
+logoutBtn.onclick = () => {
+  activeCode = "";
+  remainingTimes = 0;
+
+  setStatus("验证兑换码后开始抓娃娃");
+  updateUser();
+};
+
+function moveClawByDelta(dx) {
+  if (!activeCode || busy) return;
+
+  clawX = clamp(50 + dx * 0.72, 10, 90);
+  updateClaw();
+}
+
+let joyActive = false;
+
+function setKnob(clientX) {
+  const rect = joy.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const dx = clamp(clientX - cx, -45, 45);
+
+  knob.style.left = `calc(50% + ${dx}px)`;
+  moveClawByDelta(dx);
+}
+
+joy.addEventListener("pointerdown", e => {
+  joyActive = true;
+  joy.setPointerCapture(e.pointerId);
+  setKnob(e.clientX);
+});
+
+joy.addEventListener("pointermove", e => {
+  if (joyActive) setKnob(e.clientX);
+});
+
+joy.addEventListener("pointerup", () => {
+  joyActive = false;
+  knob.style.left = "50%";
+});
+
+joy.addEventListener("pointercancel", () => {
+  joyActive = false;
+  knob.style.left = "50%";
+});
+
+function getCandidateLocal() {
+  const available = dolls.filter(d => d.unlimited || Number(d.stock) > 0);
+
+  if (!available.length) return null;
+
+  return available
+    .map(d => ({
+      ...d,
+      gap: Math.abs(clawX - d.x)
+    }))
+    .sort((a, b) => a.gap - b.gap)[0];
+}
+
+async function startCatch() {
+  if (busy) return;
+
+  if (!activeCode) {
+    return alert("请先输入兑换码");
+  }
+
+  if (remainingTimes <= 0) {
+    activeCode = "";
+    remainingTimes = 0;
+    updateUser();
+
+    return showModal({
+      type: "empty",
+      icon: "",
+      reward: "兑换码次数已用完"
+    });
+  }
+
+  if (!hasAvailableDoll()) {
+    updateButtons();
+
+    return showModal({
+      type: "empty",
+      icon: "",
+      reward: "奖励库存已抓完，请联系 Koi Club"
+    });
+  }
+
+  busy = true;
+  updateButtons();
+
   try {
-    await api(`/api/admin/records/${id}/status`, {
+    const candidate = getCandidateLocal();
+
+    if (!candidate) {
+      return showModal({
+        type: "empty",
+        icon: "",
+        reward: "奖励库存已抓完，请联系 Koi Club"
+      });
+    }
+
+    clawX = candidate.x;
+    updateClaw(64, 64, false);
+    await wait(360);
+
+    setStatus("抓钩下降中...");
+    updateClaw(220, 210, false);
+    await wait(760);
+
+    setStatus("抓取判定中...");
+    claw.classList.add("closed", "shake");
+    await wait(420);
+    claw.classList.remove("shake");
+
+    held.innerHTML = `<img src="${candidate.image}" alt="${candidate.name}">`;
+
+    setStatus("抓钩上升中...");
+    updateClaw(64, 64, true);
+    await wait(760);
+
+    setStatus("正在送往出货口...");
+    clawX = 13;
+    updateClaw(64, 64, true);
+    await wait(700);
+
+    held.innerHTML = "";
+    claw.classList.remove("closed");
+
+    const res = await fetch("/api/catch", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
-        status: "已发放"
+        code: activeCode,
+        clawX: candidate.x
       })
     });
 
-    await loadRecords();
-  } catch (e) {
-    alert(e.message);
-  }
-};
+    const data = await res.json();
 
-$("refreshBtn").onclick = loadAll;
+    if (!data.ok) {
+      activeCode = "";
+      remainingTimes = 0;
+      updateUser();
 
-$("exportBtn").onclick = async () => {
-  try {
-    const data = await api("/api/admin/records");
+      return showModal({
+        type: "empty",
+        icon: "",
+        reward: data.error || "抓取失败"
+      });
+    }
 
-    const text = data.records
-      .map(r => `${r.time}\t${r.code}\t${r.doll}\t${r.reward}\t${r.status}`)
-      .join("\n");
+    dolls = data.dolls || dolls;
+    remainingTimes = Number(data.remaining || 0);
 
-    await copyText(text || "暂无记录");
-  } catch (e) {
-    alert(e.message);
-  }
-};
+    renderDolls();
+    renderRewards();
 
-$("resetStockBtn").onclick = async () => {
-  if (confirm("确定重置全部库存？")) {
-    await api("/api/admin/reset-stock", {
-      method: "POST",
-      body: "{}"
+    if (remainingTimes <= 0) {
+      activeCode = "";
+      remainingTimes = 0;
+      setStatus("本次兑换码次数已用完");
+    } else {
+      setStatus("还有剩余次数，可继续抓取");
+    }
+
+    updateUser();
+
+    showModal({
+      type: "win",
+      ...data.result
     });
-
-    await loadDolls();
+  } finally {
+    busy = false;
+    updateButtons();
   }
+}
+
+catchBtn.onclick = startCatch;
+
+function showModal(r) {
+  modal.classList.add("show");
+
+  modalIcon.textContent = r.icon || "";
+  modalTitle.textContent = r.type === "win" ? "恭喜抓中！" : "提示";
+  modalSub.textContent = r.type === "win" ? `你抓到了〖${r.doll}〗` : "当前不可继续抓取";
+  modalReward.textContent = r.reward;
+
+  againBtn.disabled = !(remainingTimes > 0 && hasAvailableDoll());
+}
+
+function hideModal() {
+  modal.classList.remove("show");
+}
+
+closeModal.onclick = hideModal;
+
+againBtn.onclick = () => {
+  hideModal();
+  updateButtons();
 };
 
-loadAll();
+modal.addEventListener("click", e => {
+  if (e.target === modal) hideModal();
+});
+
+window.addEventListener("keydown", e => {
+  if (!activeCode || busy) return;
+
+  if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") {
+    clawX = clamp(clawX - 5, 10, 90);
+    updateClaw();
+  }
+
+  if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") {
+    clawX = clamp(clawX + 5, 10, 90);
+    updateClaw();
+  }
+
+  if (e.code === "Space") {
+    e.preventDefault();
+    startCatch();
+  }
+});
+
+setStatus("验证兑换码后开始抓娃娃");
+loadConfig();
