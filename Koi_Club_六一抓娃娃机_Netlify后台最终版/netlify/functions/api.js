@@ -38,17 +38,15 @@ function now() {
 }
 
 function normalizeCode(input) {
-  const raw = String(input || "")
-    .trim()
+  const clean = String(input || "")
     .toUpperCase()
-    .replace(/\s+/g, "");
+    .replace(/[^A-Z0-9]/g, "");
 
-  const match = raw.match(/KOI-[0-9A-F]{6}/) || raw.match(/KOI[0-9A-F]{6}/);
+  const match = clean.match(/KOI([0-9A-F]{6})/);
 
-  if (!match) return raw;
+  if (!match) return clean;
 
-  const code = match[0];
-  return code.startsWith("KOI-") ? code : "KOI-" + code.slice(3);
+  return "KOI-" + match[1];
 }
 
 function cloneDefaultDb() {
@@ -148,7 +146,7 @@ exports.handler = async event => {
       const codeText = normalizeCode(body.code);
 
       const found = db.codes.find(c => {
-        return String(c.code || "").toUpperCase() === codeText;
+        return normalizeCode(c.code) === codeText;
       });
 
       if (!found) {
@@ -178,7 +176,7 @@ exports.handler = async event => {
       const clawX = Math.max(10, Math.min(90, Number(body.clawX || 50)));
 
       const code = db.codes.find(c => {
-        return String(c.code || "").toUpperCase() === codeText;
+        return normalizeCode(c.code) === codeText;
       });
 
       if (!code) {
@@ -287,7 +285,7 @@ exports.handler = async event => {
       for (let i = 0; i < count; i++) {
         let code = makeCode();
 
-        while (db.codes.some(c => c.code === code)) {
+        while (db.codes.some(c => normalizeCode(c.code) === normalizeCode(code))) {
           code = makeCode();
         }
 
