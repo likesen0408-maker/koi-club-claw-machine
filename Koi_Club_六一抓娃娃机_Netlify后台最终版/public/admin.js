@@ -162,14 +162,16 @@ $("createBtn").onclick = async () => {
 
     codesBox.innerHTML = newCodesHtml + codesBox.innerHTML;
 
-    if (firstCode) {
-      try {
-        await navigator.clipboard.writeText(firstCode);
-        alert("已生成，并自动复制兑换码：" + firstCode);
-      } catch (e) {
-        alert("已生成兑换码，请点击旁边的一键复制兑换码按钮");
-      }
-    }
+   if (firstCode) {
+  try {
+    await navigator.clipboard.writeText(firstCode);
+    alert("已生成，并自动复制兑换码：" + firstCode);
+  } catch (e) {
+    alert("已生成兑换码，请点击旁边的一键复制兑换码按钮");
+  }
+}
+
+await loadCodes();
   } catch (e) {
     alert(e.message);
   }
