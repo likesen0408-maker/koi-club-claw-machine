@@ -2,8 +2,6 @@ const { getStore, connectLambda } = require("@netlify/blobs");
 const crypto = require("crypto");
 const DEFAULT_DB = require("./default-db.json");
 
-const ADMIN_KEY = process.env.ADMIN_KEY || "koi061";
-
 function response(statusCode, body, headers = {}) {
   return {
     statusCode,
@@ -50,7 +48,6 @@ function normalizeCode(input) {
   if (!match) return raw;
 
   const code = match[0];
-
   return code.startsWith("KOI-") ? code : "KOI-" + code.slice(3);
 }
 
@@ -77,7 +74,6 @@ async function getDb() {
 
   if (!db) {
     db = cloneDefaultDb();
-    await store.setJSON("db", db);
   }
 
   db.codes = Array.isArray(db.codes) ? db.codes : [];
@@ -99,18 +95,6 @@ function remaining(code) {
   return Math.max(0, Number(code.total || 0) - Number(code.used || 0));
 }
 
-function syncCodeUsageFromRecords(db, code) {
-  if (!db || !code || !Array.isArray(db.records)) return code;
-
-  const recordCount = db.records.filter(r => {
-    return String(r.code || "").toUpperCase() === String(code.code || "").toUpperCase();
-  }).length;
-
-  code.used = Math.max(Number(code.used || 0), recordCount);
-
-  return code;
-}
-
 function makeCode() {
   return "KOI-" + crypto.randomBytes(3).toString("hex").toUpperCase();
 }
@@ -128,10 +112,6 @@ function publicDoll(d) {
     stock: d.stock,
     unlimited: !!d.unlimited
   };
-}
-
-function adminOnly(event) {
-  return true;
 }
 
 function getRoute(event) {
@@ -178,9 +158,6 @@ exports.handler = async event => {
         });
       }
 
-      syncCodeUsageFromRecords(db, found);
-      await saveDb(store, db);
-
       if (remaining(found) <= 0) {
         return response(400, {
           ok: false,
@@ -211,11 +188,7 @@ exports.handler = async event => {
         });
       }
 
-      syncCodeUsageFromRecords(db, code);
-
       if (remaining(code) <= 0) {
-        await saveDb(store, db);
-
         return response(400, {
           ok: false,
           error: "兑换码次数已用完"
@@ -292,17 +265,7 @@ exports.handler = async event => {
       });
     }
 
-    if (!adminOnly(event)) {
-      return response(401, {
-        ok: false,
-        error: "后台密码错误"
-      });
-    }
-
     if (method === "GET" && route === "admin/codes") {
-      db.codes.forEach(c => syncCodeUsageFromRecords(db, c));
-      await saveDb(store, db);
-
       return response(200, {
         ok: true,
         codes: db.codes.map(c => ({
@@ -400,29 +363,6 @@ exports.handler = async event => {
       return response(200, {
         ok: true,
         dolls: db.dolls
-      });
-    }
-
-    const stockMatch = route.match(/^admin\/dolls\/(.+)\/stock$/);
-
-    if (method === "POST" && stockMatch) {
-      const body = JSON.parse(event.body || "{}");
-      const doll = db.dolls.find(d => String(d.id) === String(stockMatch[1]));
-
-      if (!doll) {
-        return response(404, {
-          ok: false,
-          error: "娃娃不存在"
-        });
-      }
-
-      doll.stock = Math.max(0, Number(body.stock || 0));
-
-      await saveDb(store, db);
-
-      return response(200, {
-        ok: true,
-        doll
       });
     }
 
