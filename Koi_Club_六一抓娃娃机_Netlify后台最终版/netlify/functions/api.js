@@ -50,7 +50,12 @@ function normalizeCode(input) {
   if (!match) return raw;
 
   const code = match[0];
+
   return code.startsWith("KOI-") ? code : "KOI-" + code.slice(3);
+}
+
+function cloneDefaultDb() {
+  return JSON.parse(JSON.stringify(DEFAULT_DB));
 }
 
 function forceUnlimitedStock(db) {
@@ -66,10 +71,6 @@ function forceUnlimitedStock(db) {
   return db;
 }
 
-function cloneDefaultDb() {
-  return JSON.parse(JSON.stringify(DEFAULT_DB));
-}
-
 async function getDb() {
   const store = getStore("koi-claw-db");
   let db = await store.get("db", { type: "json" });
@@ -79,7 +80,12 @@ async function getDb() {
     await store.setJSON("db", db);
   }
 
+  db.codes = Array.isArray(db.codes) ? db.codes : [];
+  db.records = Array.isArray(db.records) ? db.records : [];
+  db.dolls = Array.isArray(db.dolls) ? db.dolls : [];
+
   db = forceUnlimitedStock(db);
+
   await store.setJSON("db", db);
 
   return { store, db };
@@ -91,6 +97,18 @@ async function saveDb(store, db) {
 
 function remaining(code) {
   return Math.max(0, Number(code.total || 0) - Number(code.used || 0));
+}
+
+function syncCodeUsageFromRecords(db, code) {
+  if (!db || !code || !Array.isArray(db.records)) return code;
+
+  const recordCount = db.records.filter(r => {
+    return String(r.code || "").toUpperCase() === String(code.code || "").toUpperCase();
+  }).length;
+
+  code.used = Math.max(Number(code.used || 0), recordCount);
+
+  return code;
 }
 
 function makeCode() {
@@ -117,7 +135,7 @@ function adminOnly(event) {
 }
 
 function getRoute(event) {
-  let p = event.path || "";
+  const p = event.path || "";
 
   if (p.includes("/api/")) {
     return p.split("/api/")[1].replace(/^\/+/, "");
@@ -130,7 +148,7 @@ function getRoute(event) {
   return "";
 }
 
-exports.handler = async (event) => {
+exports.handler = async event => {
   try {
     connectLambda(event);
 
@@ -149,7 +167,9 @@ exports.handler = async (event) => {
       const body = JSON.parse(event.body || "{}");
       const codeText = normalizeCode(body.code);
 
-      const found = db.codes.find(c => String(c.code).toUpperCase() === codeText);
+      const found = db.codes.find(c => {
+        return String(c.code || "").toUpperCase() === codeText;
+      });
 
       if (!found) {
         return response(404, {
@@ -157,6 +177,9 @@ exports.handler = async (event) => {
           error: "兑换码不存在"
         });
       }
+
+      syncCodeUsageFromRecords(db, found);
+      await saveDb(store, db);
 
       if (remaining(found) <= 0) {
         return response(400, {
@@ -177,7 +200,9 @@ exports.handler = async (event) => {
       const codeText = normalizeCode(body.code);
       const clawX = Math.max(10, Math.min(90, Number(body.clawX || 50)));
 
-      const code = db.codes.find(c => String(c.code).toUpperCase() === codeText);
+      const code = db.codes.find(c => {
+        return String(c.code || "").toUpperCase() === codeText;
+      });
 
       if (!code) {
         return response(404, {
@@ -186,7 +211,11 @@ exports.handler = async (event) => {
         });
       }
 
+      syncCodeUsageFromRecords(db, code);
+
       if (remaining(code) <= 0) {
+        await saveDb(store, db);
+
         return response(400, {
           ok: false,
           error: "兑换码次数已用完"
@@ -271,6 +300,9 @@ exports.handler = async (event) => {
     }
 
     if (method === "GET" && route === "admin/codes") {
+      db.codes.forEach(c => syncCodeUsageFromRecords(db, c));
+      await saveDb(store, db);
+
       return response(200, {
         ok: true,
         codes: db.codes.map(c => ({
@@ -301,10 +333,12 @@ exports.handler = async (event) => {
           total,
           used: 0,
           pay,
+          lockedUntil: 0,
           createdAt: now()
         };
 
         db.codes.unshift(item);
+
         made.push({
           ...item,
           remaining: total
